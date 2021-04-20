@@ -20,77 +20,58 @@ let dbManager = require('./dbManager');
 let express = require("express");
 let app = express();
 var ObjectID = require('mongodb').ObjectId;
-//This will take a set of properties that are coming in from a "POST"
-//And transform them into a document for inserting into the "activities"
-// collection
+var userRouter = require('./routes/userRoutes.js')
+//var Exercise = require("tracker/Exercise");
+
+let mongoose = require('mongoose');
+mongoose.set('bufferCommands', false);
+//const actSchema=require('./models/activitySchema');
+// const exSchema = new mongoose.Schema({
+// 	type: {
+// 		type: String,
+// 		required: true
+// }
+// });
+// exSchema.loadClass(Exercise);
+// const actSchema= new mongoose.Schema(
+// {
+// 	activity : {
+// 		type: exSchema
+// 	} ,
+// 	weight: Number,
+// 	distance: Number,
+// 	time: {
+// 		type: Number, 
+// 		validate: {
+// 			validator: function(){
+// 				return (this.time>0)
+// 			}, 
+// 			message: "Time must be greater than 0!"
+// 		},
+// 		required: [true,'You must enter a time for speed']
+// 	},
+// 	user: String
+	
+// });
+
+// actSchema.loadClass(tracker);
+// actSchema.path('activity').required(true, 'You must enter an activity to track');
+// actSchema.path('weight').required(true, 'You must enter a weight for calculation');
+// actSchema.path('distance').required(true, 'You must enter a distance for everything');
+
+const actCol=require('./models/activitySchema');
+
+
+//This has been modified to return a Mongoose Model instance (a document)
 function docifyActivity(params){
-    let doc = { activity: { type: params.activity }, weight: params.weight,
-		distance: params.distance, time: params.time, user: params.user};
+    let doc = new actCol({ activity: { type : params.activity.toString().toLowerCase() }, weight: params.weight,
+		distance: params.distance, time: params.time, user: params.user});
     return doc;
 }
 
 //The same server response from the activity_server lab
 //this time it is specifically used for db inserts
-/*function servResp( calories, res){
-let page = '<html><head><title>The Activity Server</title></head>'+
-'<body> <form method="post">'+
-'<h1>Fill out your Activity</h1>'+
-'User Name <input name="user"><br>'+
-'Activity Name <select name="activity"><option>Running</option><option>Walking</option><option>Swimming</option></select><br>'+
-'Weight (in pounds) <input name="weight"><br>' +
-'Distance (in miles) <input name="distance"><br>'+
-'Time (in minutes) <input name="time"><br>' +
-'<input type="submit" value="Insert!">' +
-'<input type="reset" value="Clear">'+
-'</form>';
-    if (calories){
-     page+='<div id="calories"><h3> Calories Burned: ' + calories + '</h3></div>';
-    }
-page+='<br><br><a href="./search">Search</a></body></html>';
 
-return page;
-}*/
-//This function is for searching. Because we want the page to finish
-//generating before it is returned, this function is labeled async
-//so that we can "await" the results of fulfillment for processing all items
-
-//this has the side effect of making this function return a Promise so we
-//will access the result using then syntax
-/*async function searchResp(result, response){
-let page = '<html><head><title>The Activity Server</title></head>'+
-'<body> <form method="post">'+
-'<h1>Search for an Activity</h1>'+
-'Property <select name="prop">'+
-'<option>user</option>' +
-'<option>activity.type</option>' +
-'<option>weight</option>' +
-'<option>distance</option>' +
-'<option>time</option>' +
-'</select>'+
-'  <input name="value">'+
-'<input type="submit" value="Search!">' +
-'<input type="reset" value="Clear">'+
-'</form>';
-
-    if (result){
-
-	page+=`<h2>Activities for ${result.prop}: ${result[result.prop]}</h2>`
-	let count = 0;
-	//the await must be wrapped in a try/catch in case the promise rejects
-	try{
-	await result.data.forEach((item) =>{
-		let curAct = new tracker(item.activity.type, item.weight, item.distance, item.time);
-	    page+=` Activity ${++count}:  <a href="/users/${item.user}">${item.user}</a>  <a href="/activities/${item._id}">Details</a> | ${curAct.calculate()} Calories Burned <br>` ;
-	    });
-	} catch (e){
-	    page+=e.message;
-	    throw e;
-	}
-    }
-page+='<br><br><a href="/insert">home/insert</a></body></html>';
-  
-    return page;
-}*/
 var postParams;
 function moveOn(postData){
     let proceed = true;
@@ -114,7 +95,7 @@ function moveOn(postData){
 //be used to end the cycle
 app.set('views', './views');
 app.set('view engine', 'pug');
-
+app.use('/users', userRouter);
 //GET ROUTES
 //These callback functions in "Express syntax" are called "middleware" functions.
 //They sit "in the middle" between your app's backend end functionality
@@ -123,6 +104,11 @@ app.set('view engine', 'pug');
 app.get('/', function (req, res){
     res.end('<html><body><br><br><a href="/insert">home/insert</a>&emsp;&emsp;<a href="/search">sea\
 rch Page</a></body></html>');
+});
+app.use(function(req, res, next){
+    let now = new Date().toLocaleTimeString("en-US", {timeZone: "America/New_York"});
+    console.log(`${req.method} Request to ${req.path} Route Received: ${now}`);
+    next();
 });
 
 app.get('/login', function(req, res, next){
@@ -151,37 +137,13 @@ app.param('actID', function(req, res, next, value){
     console.log(`Request for activity ${value}`);
     next();
 });
-app.get('/users/:userID', async (req, res)=> {
-    let users = dbManager.get().collection("users");
-    let activities = dbManager.get().collection("activities");
 
-    try{
 
-	let user=await users.findOne({_id: req.params.userID});
-
-	let actCursor = activities.find({ user: req.params.userID});
-
-	let actArr = await actCursor.toArray();
-	let current;
-	for (item in actArr){
-	    current = new tracker(actArr[item].activity.type, actArr[item].weight, actArr[item].distance, actArr[item].time);
-	    actArr[item].calories = current.calculate();
-	    console.log("Calories: " + current.calculate());
-	}
-	res.render('user', { searchID: user._id, activities: actArr});
-    }catch (err){
-	console.log(err.message);
-	res.status(500).send("Error 500");
-    }
-
-    
-    
-});
 app.get('/activities/:actID', async function(req, res){
    
-    let col = dbManager.get().collection("activities");
+    //let col = dbManager.get().collection("activities");
     try{
-	let result = await col.findOne({ _id: ObjectID(req.params.actID) });
+	let result = await actCol.findOne({ _id: ObjectID(req.params.actID) });
 	console.log(result);
 
 	res.render('activity', { searchID: result.user, exercise: result.activity.type, distance: result.distance, weight: result.weight })
@@ -199,9 +161,9 @@ app.post('/insert', function(req, res){
     });
     req.on('end', async ()=>{
 	//Break into functions
-	console.log(postData);
-	if (moveOn(postData)){
-	    let col = dbManager.get().collection("activities");
+	postParams = qString.parse(postData)
+	
+	    //let col = dbManager.get().collection("activities");
 	    //on the insert page
 		try{
 		    //if the data is bad, object creation throws an
@@ -217,25 +179,16 @@ app.post('/insert', function(req, res){
 		    let curDoc = docifyActivity(postParams);
 
 		    //insert the document into the db
-		    let result = await col.insertOne(curDoc);
+			await curDoc.save() 
 		    //return calories as response (Success)
 //		    let page =  servResp(calories, res);
 		    res.render('insert', { calories: calories});
-		    console.log(result); //log result for viewing
-		} catch (err){
-		    calories = "ERROR! Please enter appropriate data";
-		    console.log(err.message);
-//		    let page = servResp(calories, res);
-		    res.render('insert', { calories: calories});
+		   
+		} catch (err){		 
+		    res.render('insert', { calories: err.message});
 		    //res.send(page);
 		}
-	} else{ //can't move on
-	    calories = "Error! All Fields must have Data";
-	    
-//	    let page =  servResp(calories, res);
-	    res.render('insert', { calories: calories});
-//	    res.send(page);
-	}
+	
     });
     	    
 });
@@ -249,7 +202,7 @@ app.post('/search', function(req, res){
 	//Break into functions
 	console.log(postData);
 	if (moveOn(postData)){
-	    let col = dbManager.get().collection("activities");
+	    //let col = dbManager.get().collection("activities");
 	    var prop= postParams.prop;
 	    var val = postParams.value;
 	    if (prop != "user" && prop != "activity.type"){
@@ -259,10 +212,10 @@ app.post('/search', function(req, res){
 	    //in the property name
 	    let searchDoc = { [prop] : val };
 	    try{
-		let cursor = col.find(searchDoc,  {
-		    projection: {  activity: 1, distance: 1, user: 1, time: 1, weight: 1}}).sort({distance: -1});
-	
-		let data = [];
+			
+			let cursor = await actCol.find(searchDoc,  '_id activity distance user weight time').exec();
+		
+			let data = [];
 		
 		await cursor.forEach((item)=>{
 		    let curTrack={};   
@@ -299,14 +252,18 @@ app.use('*', function(req, res){
     res.writeHead(404);
     res.end(`<h1> ERROR 404. ${req.url} NOT FOUND</h1><br><br>`);
 });
-
+app.use((err, req, res, next)=>{
+	res.status(500).render('error', {message: err.message})
+})
 
 //Express listen function is literally the HTTP server listen method
 //so we can do the exact same things with it as before
 app.listen(6900, async ()=> {
     //start and wait for the DB connection
     try{
-        await dbManager.get("practiceDB");
+		await mongoose.connect('mongodb://localhost:27017/practiceDB', {useNewUrlParser: true, useUnifiedTopology: true })
+
+		await dbManager.get("practiceDB");
     } catch (e){
         console.log(e.message);
     }
