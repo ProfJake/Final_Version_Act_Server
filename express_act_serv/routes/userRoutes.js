@@ -1,16 +1,16 @@
 var express = require("express");
 var router = express.Router();
 var tracker = require("tracker");
-let dbManager = require('../dbManager');
 let actCol = require('../models/activitySchema');
+let userCol = require('../models/userSchema');
 
 router.get('/:userID', async (req, res)=> {
-    let users = dbManager.get().collection("users");
+  //  let users = dbManager.get().collection("users");
 //    let activities = dbManager.get().collection("activities");
 
     try{
 
-	let user=await users.findOne({_id: req.params.userID});
+	let user=await userCol.findOne({_id: req.params.userID});
 
 	let actArr = await actCol.find({ user: req.params.userID});
 

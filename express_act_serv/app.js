@@ -61,7 +61,6 @@ mongoose.set('bufferCommands', false);
 
 const actCol=require('./models/activitySchema');
 
-
 //This has been modified to return a Mongoose Model instance (a document)
 function docifyActivity(params){
     let doc = new actCol({ activity: { type : params.activity.toString().toLowerCase() }, weight: params.weight,
@@ -263,7 +262,7 @@ app.listen(6900, async ()=> {
     try{
 		await mongoose.connect('mongodb://localhost:27017/practiceDB', {useNewUrlParser: true, useUnifiedTopology: true })
 
-		await dbManager.get("practiceDB");
+		// await dbManager.get("practiceDB");
     } catch (e){
         console.log(e.message);
     }
