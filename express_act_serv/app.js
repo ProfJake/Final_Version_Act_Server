@@ -29,10 +29,16 @@ const actCol=require('./models/activitySchema');
 
 
 //LOGIN STUFF
+//Class:
+//Add a password to the userSchema
+//Add a password to a test user in the DB
+// Install  all the libraries & require libraries and schema
+
 let bp = require('body-parser');
 let session = require('express-session');
 let crypto = require('crypto');
 const userCol = require("./models/userSchema");
+//copy the function to here
 function genHash(input){
     return Buffer.from(crypto.createHash('sha256').update(input).digest('base32')).toString('hex').toUpperCase();
 }
@@ -60,6 +66,14 @@ var postParams;
 app.set('views', './views');
 app.set('view engine', 'pug');
 app.use('/users', userRouter);
+
+//explain sessions then add the login  pug file
+//add the login get method
+
+//add login post method
+//explain express-parser and express-session
+//explain res.redirect
+//add redirects to all get Methods
 app.use(session({
 	secret:'shhhhh',
 	saveUninitialized: false,
