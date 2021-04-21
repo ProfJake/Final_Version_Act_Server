@@ -7,8 +7,14 @@ html(lang="en")
 	
     title= "The Activity Web Server"
   body
-  h1 The Activity Express Web Server
+    header 
+      block homeLink
+        if trusted
+          a(href='/users/'+trusted.name) My Page
+
+    h1 The Activity Express Web Server
   
+
     block content
 
   block footer

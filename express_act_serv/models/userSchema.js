@@ -15,7 +15,8 @@ const userSchema = new mongoose.Schema({
 	email_verified:{
 		type: Boolean,
 		default: false
-	}
+	},
+	password: String
 });
 const userCol=mongoose.model('User', userSchema)
 

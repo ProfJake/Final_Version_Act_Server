@@ -25,41 +25,17 @@ var userRouter = require('./routes/userRoutes.js')
 
 let mongoose = require('mongoose');
 mongoose.set('bufferCommands', false);
-//const actSchema=require('./models/activitySchema');
-// const exSchema = new mongoose.Schema({
-// 	type: {
-// 		type: String,
-// 		required: true
-// }
-// });
-// exSchema.loadClass(Exercise);
-// const actSchema= new mongoose.Schema(
-// {
-// 	activity : {
-// 		type: exSchema
-// 	} ,
-// 	weight: Number,
-// 	distance: Number,
-// 	time: {
-// 		type: Number, 
-// 		validate: {
-// 			validator: function(){
-// 				return (this.time>0)
-// 			}, 
-// 			message: "Time must be greater than 0!"
-// 		},
-// 		required: [true,'You must enter a time for speed']
-// 	},
-// 	user: String
-	
-// });
-
-// actSchema.loadClass(tracker);
-// actSchema.path('activity').required(true, 'You must enter an activity to track');
-// actSchema.path('weight').required(true, 'You must enter a weight for calculation');
-// actSchema.path('distance').required(true, 'You must enter a distance for everything');
-
 const actCol=require('./models/activitySchema');
+
+
+//LOGIN STUFF
+let bp = require('body-parser');
+let session = require('express-session');
+let crypto = require('crypto');
+const userCol = require("./models/userSchema");
+function genHash(input){
+    return Buffer.from(crypto.createHash('sha256').update(input).digest('base32')).toString('hex').toUpperCase();
+}
 
 //This has been modified to return a Mongoose Model instance (a document)
 function docifyActivity(params){
@@ -72,18 +48,7 @@ function docifyActivity(params){
 //this time it is specifically used for db inserts
 
 var postParams;
-function moveOn(postData){
-    let proceed = true;
-    postParams = qString.parse(postData);
-    //handle empty data
-    for (property in postParams){
-	if (postParams[property].toString().trim() == ''){
-	    proceed = false;
-	}
-    }
 
-    return proceed;
-}
 
 //The order of provided routing functions matters.  They work similarly to
 //cases in a switch statement.  The first matching route is run.
@@ -95,14 +60,25 @@ function moveOn(postData){
 app.set('views', './views');
 app.set('view engine', 'pug');
 app.use('/users', userRouter);
+app.use(session({
+	secret:'shhhhh',
+	saveUninitialized: false,
+	resave: false
+}));
 //GET ROUTES
 //These callback functions in "Express syntax" are called "middleware" functions.
 //They sit "in the middle" between your app's backend end functionality
 //(in this case, the simple Activity Class, MongoDB, and/or the local
 //"server" filesystem) and the client.  Middleware function's 
 app.get('/', function (req, res){
-    res.end('<html><body><br><br><a href="/insert">home/insert</a>&emsp;&emsp;<a href="/search">sea\
-rch Page</a></body></html>');
+	if (!req.session.user){
+        res.redirect('/login');
+    }
+    else{
+
+    	res.render('index', {trusted: req.session.user});
+	}
+
 });
 app.use(function(req, res, next){
     let now = new Date().toLocaleTimeString("en-US", {timeZone: "America/New_York"});
@@ -111,12 +87,20 @@ app.use(function(req, res, next){
 });
 
 app.get('/login', function(req, res, next){
-
+    if (req.session.user){
+        res.redirect('/');
+    }else{
+        res.render('login');
+    }
 });
 app.get('/insert', function (req, res){
-   // let page = servResp(null, res);
-    //    res.send(page);
-    res.render('insert');
+	if (!req.session.user){
+        res.redirect('/login');
+    }
+    else{
+
+    	res.render('insert', {trusted: req.session.user});
+	}
 });
 //demonstrates error handling with Express
 //This error is unlikely but this middleware function demonstrates how to use
@@ -127,10 +111,13 @@ app.get('/insert', function (req, res){
 //a stack trace of the error (the series of called functions that generated
 //the error).  But if you want only basic error handling, you can use it
 app.get('/search', function(req, res, next){
-//    searchResp(null, res).then(
-//	page=> {    res.send(page); }
-    //    ).catch(next);
-    res.render('search');
+	if (!req.session.user){
+        res.redirect('/login');
+    }
+    else{
+
+    	res.render('search', {trusted: req.session.user});
+	}
 });
 app.param('actID', function(req, res, next, value){
     console.log(`Request for activity ${value}`);
@@ -153,6 +140,22 @@ app.get('/activities/:actID', async function(req, res){
 var postData;
 
 //POST ROUTES
+app.post('/login', express.urlencoded({extended:false}), async (req, res, next)=>{
+	let untrusted= {user: req.body.userName, password: genHash(req.body.pass)};
+	console.log(untrusted.password)
+	try{
+		let result = await userCol.findOne({_id: req.body.userName});
+		if (untrusted.password.toString().toUpperCase()==result.password.toString().toUpperCase()){
+			let trusted={name: result._id.toString()};
+            req.session.user = trusted;
+			res.redirect('/');
+		} else{
+			res.redirect('/login');
+		}
+	} catch (err){
+		next(err)		
+	}
+})
 app.post('/insert', function(req, res){
     postData = '';
     req.on('data', (data) =>{
