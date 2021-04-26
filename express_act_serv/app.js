@@ -49,7 +49,23 @@ function docifyActivity(params){
 		distance: params.distance, time: params.time, user: params.user});
     return doc;
 }
+function docifyUser(params){
+    let doc = new actCol({ activity: { type : params.activity.toString().toLowerCase() }, weight: params.weight,
+			   distance: params.distance, time: params.time, user: params.user\
+			 });
+    return doc;
+}
 
+//SIGNUP STUFF
+
+let nodemailer=require('nodemailer');
+const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth:{
+	user: "loremrowan@gmail.com",
+	pass: "loremRowan2021"
+    }
+});
 //The same server response from the activity_server lab
 //this time it is specifically used for db inserts
 
@@ -137,7 +153,9 @@ app.param('actID', function(req, res, next, value){
     console.log(`Request for activity ${value}`);
     next();
 });
-
+app.get('/signup', (req, res)=>{
+    res.render('signup');
+})
 
 app.get('/activities/:actID', async function(req, res){
    
@@ -154,6 +172,27 @@ app.get('/activities/:actID', async function(req, res){
 var postData;
 
 //POST ROUTES
+app.post('/signup', express.urlencoded({extended:false}), async (req, res, next)=>{
+    console.log(req.body.user); 
+    if (req.body.user.split(/[;:,-\s ]+/).length > 1) {
+	res.render('signup', {msg: "Usernames must be one word"})
+    }
+    if (req.body.password.toString() != req.body.confirm.toString()){
+	res.render('signup', {msg: "Passwords must match"});
+    }
+    let newUser= 
+    let msgOpts = {
+	subject: "Activity App Sign Up",
+	html: `<html><a href=\'localhost:6900/signup/${req.body.user}\'>SIGN UP FOR THE ACTIVITY SERVER</a></html>`,
+	to: `${req.body.email}`,
+	from: "loremrowan@gmail.com"
+    };
+
+    transporter.sendMail(msgOpts);
+    await userCol.save
+    //Continue by inserting default user (with Email_verfied as false)
+    //use the link in the email to run update to the email_verified to true
+});
 app.post('/login', express.urlencoded({extended:false}), async (req, res, next)=>{
 	let untrusted= {user: req.body.userName, password: genHash(req.body.pass)};
 	console.log(untrusted.password)
@@ -286,3 +325,4 @@ app.listen(6900, async ()=> {
 
     console.log("Server is running...");
 });
+

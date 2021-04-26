@@ -1,0 +1,24 @@
+extends layout
+block content
+
+  form(method="POST")
+    |Username:
+    input(name="user" value="your Name")
+    br
+    |Email:
+    input(name="email" value="sample@demo.com")
+    br
+    |Password:
+    input(name="password" value="")
+    br
+    |Confirm:
+    input(name="confirm" value="")
+    br
+    input(type="submit" value="Submit!")
+    input(type="reset" value="Clear!")
+  br
+
+  if msg
+    #message
+    |#{msg}
+
