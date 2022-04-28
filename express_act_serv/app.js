@@ -50,14 +50,29 @@ function docifyActivity(params){
     return doc;
 }
 function docifyUser(params){
-    let doc = new actCol({ activity: { type : params.activity.toString().toLowerCase() }, weight: params.weight,
-			   distance: params.distance, time: params.time, user: params.user\
-			 });
+    let doc = new userCol({_id: params.name, email: params.email, password: params.password });
     return doc;
 }
+/*name: String,
+	age: Number,
+	email:{
+		type: String,
+		required: [true, 'You must enter an email']
+	},*/ 
 
 //SIGNUP STUFF
+function moveOn(postData){
+    let proceed = true;
+    postParams = qString.parse(postData);
+    //handle empty data
+    for (property in postParams){
+	if (postParams[property].toString().trim() == ''){
+	    proceed = false;
+	}
+    }
 
+    return proceed;
+}
 let nodemailer=require('nodemailer');
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
@@ -157,7 +172,7 @@ app.get('/signup', (req, res)=>{
     res.render('signup');
 })
 
-app.get('/activities/:actID', async function(req, res){
+app.get('/activities/:actID', async function(req, res, next){
    
     //let col = dbManager.get().collection("activities");
     try{
@@ -167,6 +182,7 @@ app.get('/activities/:actID', async function(req, res){
 	res.render('activity', { searchID: result.user, exercise: result.activity.type, distance: result.distance, weight: result.weight })
     }catch(e){
 	console.log(e.message);
+	next(e)
     }
 });
 var postData;
@@ -180,7 +196,8 @@ app.post('/signup', express.urlencoded({extended:false}), async (req, res, next)
     if (req.body.password.toString() != req.body.confirm.toString()){
 	res.render('signup', {msg: "Passwords must match"});
     }
-    let newUser= 
+	let hashPass = genHash(req.body.password)
+    let newUser = docifyUser({name: req.body.user, email: req.body.email, password: hashPass })
     let msgOpts = {
 	subject: "Activity App Sign Up",
 	html: `<html><a href=\'localhost:6900/signup/${req.body.user}\'>SIGN UP FOR THE ACTIVITY SERVER</a></html>`,
@@ -189,7 +206,8 @@ app.post('/signup', express.urlencoded({extended:false}), async (req, res, next)
     };
 
     transporter.sendMail(msgOpts);
-    await userCol.save
+    await newUser.save()
+	res.redirect('login')
     //Continue by inserting default user (with Email_verfied as false)
     //use the link in the email to run update to the email_verified to true
 });
