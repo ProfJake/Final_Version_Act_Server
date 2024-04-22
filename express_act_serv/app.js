@@ -43,6 +43,19 @@ function genHash(input){
     return Buffer.from(crypto.createHash('sha256').update(input).digest('base32')).toString('hex').toUpperCase();
 }
 
+app.listen(3000, async ()=> {
+    //start and wait for the DB connection
+    try{
+		await mongoose.connect('mongodb://127.0.0.1:27017/practiceDB', {useNewUrlParser: true, useUnifiedTopology: true })
+
+		// await dbManager.get("practiceDB");
+    } catch (e){
+        console.log(e.message);
+    }
+
+    console.log("Server is running...");
+});
+
 //This has been modified to return a Mongoose Model instance (a document)
 function docifyActivity(params){
     let doc = new actCol({ activity: { type : params.activity.toString().toLowerCase() }, weight: params.weight,
@@ -331,16 +344,5 @@ app.use((err, req, res, next)=>{
 
 //Express listen function is literally the HTTP server listen method
 //so we can do the exact same things with it as before
-app.listen(6900, async ()=> {
-    //start and wait for the DB connection
-    try{
-		await mongoose.connect('mongodb://localhost:27017/practiceDB', {useNewUrlParser: true, useUnifiedTopology: true })
 
-		// await dbManager.get("practiceDB");
-    } catch (e){
-        console.log(e.message);
-    }
-
-    console.log("Server is running...");
-});
 

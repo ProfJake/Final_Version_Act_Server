@@ -13,7 +13,7 @@ const activitySchema= new mongoose.Schema(
             type: Number, 
             validate: {
                 validator: function(){
-                    return (this.time>0)
+                    return (time>0)
                 }, 
                 message: "Time must be greater than 0!"
             },
